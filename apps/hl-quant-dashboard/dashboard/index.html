@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HL Quant Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <span class="title">HL&nbsp;QUANT&nbsp;DASHBOARD</span>
+      <span class="phase">read-only · research</span>
+    </div>
+    <div class="status" id="status-chips">
+      <span class="chip" id="chip-key">key: …</span>
+      <span class="chip" id="chip-vault">vault: …</span>
+      <span class="chip" id="chip-clock">--:--:-- UTC</span>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="markets">Markets</button>
+    <button class="tab" data-tab="liquidations">Liquidations</button>
+    <button class="tab" data-tab="whales">Whales</button>
+    <button class="tab" data-tab="hlp">HLP</button>
+    <button class="tab" data-tab="smart">Smart&nbsp;Money</button>
+    <button class="tab" data-tab="backtest">Backtest</button>
+  </nav>
+
+  <main>
+    <!-- MARKETS -->
+    <section class="panel-page active" id="page-markets">
+      <div class="controls">
+        <label>Coin <input id="mkt-coin" value="BTC" /></label>
+        <label>Interval
+          <select id="mkt-interval"></select>
+        </label>
+        <button id="mkt-load">Load candles</button>
+        <button id="mkt-refresh-prices" class="ghost">Refresh prices</button>
+      </div>
+      <div class="grid">
+        <div class="card span2">
+          <div class="card-h">Candles <span class="sub" id="mkt-candle-meta"></span></div>
+          <canvas id="mkt-chart" height="280"></canvas>
+          <div class="state" id="mkt-chart-state"></div>
+        </div>
+        <div class="card">
+          <div class="card-h">Prices / Funding / OI</div>
+          <div class="tablewrap"><table id="mkt-prices"><tbody></tbody></table></div>
+          <div class="state" id="mkt-prices-state"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIQUIDATIONS -->
+    <section class="panel-page" id="page-liquidations">
+      <div class="controls">
+        <label>Timeframe <select id="liq-tf"></select></label>
+        <button id="liq-load">Load</button>
+      </div>
+      <div class="card">
+        <div class="card-h">Liquidations <span class="sub" id="liq-meta"></span></div>
+        <div class="tablewrap"><table id="liq-table"><tbody></tbody></table></div>
+        <div class="state" id="liq-state"></div>
+      </div>
+    </section>
+
+    <!-- WHALES -->
+    <section class="panel-page" id="page-whales">
+      <div class="controls"><button id="whale-load">Load whale trades</button></div>
+      <div class="card">
+        <div class="card-h">Recent whale trades ($25k+)</div>
+        <div class="tablewrap"><table id="whale-table"><tbody></tbody></table></div>
+        <div class="state" id="whale-state"></div>
+      </div>
+    </section>
+
+    <!-- HLP -->
+    <section class="panel-page" id="page-hlp">
+      <div class="controls">
+        <button id="hlp-load">Load HLP positions</button>
+        <button id="hlp-sent" class="ghost">Sentiment</button>
+      </div>
+      <div class="card"><div class="card-h">HLP</div>
+        <pre class="json" id="hlp-out"></pre>
+        <div class="state" id="hlp-state"></div>
+      </div>
+    </section>
+
+    <!-- SMART MONEY -->
+    <section class="panel-page" id="page-smart">
+      <div class="controls">
+        <button id="sm-rank">Rankings</button>
+        <button id="sm-board" class="ghost">Leaderboard</button>
+      </div>
+      <div class="card"><div class="card-h">Smart money</div>
+        <pre class="json" id="sm-out"></pre>
+        <div class="state" id="sm-state"></div>
+      </div>
+    </section>
+
+    <!-- BACKTEST -->
+    <section class="panel-page" id="page-backtest">
+      <div class="grid">
+        <div class="card">
+          <div class="card-h">Configure</div>
+          <div class="form">
+            <label>Coin <input id="bt-coin" value="BTC" /></label>
+            <label>Interval <select id="bt-interval"></select></label>
+            <label>Strategy <select id="bt-strategy"></select></label>
+            <div id="bt-params" class="params"></div>
+            <label>Taker fee (bps) <input id="bt-fee" type="number" value="4.5" step="0.5" /></label>
+            <label>Slippage (bps) <input id="bt-slip" type="number" value="2.0" step="0.5" /></label>
+            <label>Cost mult <input id="bt-costmult" type="number" value="1" step="1" min="1" /></label>
+            <label>OOS holdout <input id="bt-oos" type="number" value="0.3" step="0.05" min="0" max="0.9" /></label>
+            <button id="bt-run">Run backtest</button>
+          </div>
+          <div class="state" id="bt-state"></div>
+        </div>
+        <div class="card span2">
+          <div class="card-h">Result <span class="sub" id="bt-result-meta"></span></div>
+          <canvas id="bt-chart" height="240"></canvas>
+          <div class="tablewrap"><table id="bt-metrics"><tbody></tbody></table></div>
+          <div class="export-row">
+            <input id="bt-notes" placeholder="notes for the vault note (optional)" />
+            <button id="bt-export" disabled>Export to vault</button>
+            <span id="bt-export-state" class="sub"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="disclaimer">
+    Not financial advice. Research artifact only. Real data or an explicit
+    error — never synthetic. Funding is not modeled in backtests (engine gap).
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

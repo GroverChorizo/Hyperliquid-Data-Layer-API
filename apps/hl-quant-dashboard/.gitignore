@@ -1,0 +1,8 @@
+# never commit secrets or local exports
+.env
+*.env
+# generated backtest notes (keep the vault scaffold, ignore real exports)
+vault/Backtests/*.md
+__pycache__/
+*.pyc
+.DS_Store
