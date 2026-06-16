@@ -3,6 +3,7 @@ rich
 python-dotenv
 pandas
 textual>=0.86
+backtesting>=0.6.5
 
 # AI Swarm Agent (requires OPENROUTER_API_KEY in .env)
 openai
