@@ -86,7 +86,10 @@ const store = { candles: {}, spark: {}, active: null, symbols: [], interval: '5m
 function initChart() {
   const elc = $('chart');
   chart = LWC.createChart(elc, {
-    layout: { background: { color: 'transparent' }, textColor: '#8493ad', fontFamily: 'SF Mono, ui-monospace, monospace', fontSize: 11 },
+    width: elc.clientWidth || 800,
+    height: elc.clientHeight || 420,
+    autoSize: true,
+    layout: { background: { color: 'transparent' }, textColor: '#8493ad', fontFamily: 'SF Mono, ui-monospace, monospace', fontSize: 12 },
     grid: { vertLines: { color: '#161e30' }, horzLines: { color: '#161e30' } },
     rightPriceScale: { borderColor: '#1d2740' },
     timeScale: { borderColor: '#1d2740', timeVisible: true, secondsVisible: false },
@@ -305,8 +308,10 @@ async function loadFeed(id) {
   } catch (e) { const b = $(`fbody-${id}`); if (b) b.innerHTML = `<div class="feed-err">${esc(e.message)}</div>`; }
 }
 
-const USD_KEYS = /(value|volume|usd|notional|pnl|account|exposure|delta|size_usd|liquidation)/i;
-const PCT_KEYS = /(pct|percent|percentile|rate|ratio|change|funding)/i;
+const USD_KEYS = /(value|volume|usd|notional|pnl|account|exposure|delta|size_usd|liquidation|fees?)\b/i;
+const PCT_KEYS = /(pct|percent|percentile|rate|ratio|change|funding|correlation)/i;
+const LABEL_KEYS = ['coin', 'symbol', 'exchange', 'name', 'category', 'ticker', 'dex', 'strategy', 'side', 'address', 'label', 'hour', 'session'];
+const VALUE_KEYS = ['volume', 'total_volume', 'total_value_usd', 'value_usd', 'value', 'usd', 'net_value', 'notional', 'size', 'total', 'pnl', 'total_pnl', 'count'];
 
 function fmtVal(key, v) {
   if (v == null) return '—';
@@ -326,45 +331,126 @@ function fmtVal(key, v) {
   return '';
 }
 
-// mini bar for a {long,short} or {buy,sell} pair
-function pairBar(a, b, la, lb) {
-  const t = (a || 0) + (b || 0); if (t <= 0) return '';
+const isUsdish = (k) => USD_KEYS.test(String(k));
+function firstNum(o, keys) {
+  for (const k of keys) if (typeof o[k] === 'number') return [k, o[k]];
+  for (const k of Object.keys(o)) if (typeof o[k] === 'number') return [k, o[k]];
+  return null;
+}
+function firstStr(o, keys) {
+  for (const k of keys) if (typeof o[k] === 'string') return o[k];
+  for (const k of Object.keys(o)) if (typeof o[k] === 'string' && !/^0x/i.test(o[k])) return o[k];
+  return null;
+}
+function dirColor(label, val) {
+  const l = String(label).toLowerCase();
+  if (/long|^buy$|^b$|bull/.test(l)) return 'var(--up)';
+  if (/short|^sell$|^a$|bear/.test(l)) return 'var(--down)';
+  return val < 0 ? 'var(--down)' : '';
+}
+
+// horizontal bar chart from [{label, value}]
+function hbars(entries, usdLike) {
+  const max = Math.max(1, ...entries.map((e) => Math.abs(e.value)));
+  return `<div class="hbars">` + entries.slice(0, 14).map((e) => {
+    const w = (Math.abs(e.value) / max) * 100;
+    const col = dirColor(e.label, e.value);
+    const lbl = /^0x/i.test(e.label) ? shortAddr(e.label) : e.label;
+    const val = usdLike ? usd(e.value) : numFmt(e.value, Number.isInteger(e.value) ? 0 : 2);
+    return `<div class="hbar"><span class="hbar-l" title="${esc(e.label)}">${esc(lbl)}</span><span class="hbar-t"><span class="hbar-f" style="width:${w.toFixed(1)}%${col ? `;background:${col}` : ''}"></span></span><span class="hbar-v">${val}</span></div>`;
+  }).join('') + `</div>`;
+}
+
+const numLike = (v) => typeof v === 'number' ? v : (typeof v === 'string' && v !== '' && !isNaN(v) ? Number(v) : null);
+
+// a {metric: number} dict (render as table/split), vs a {entity: {...}} breakdown (render as bars)
+function isValueMap(o) {
+  const vals = Object.values(o);
+  return vals.length >= 6 && vals.every((x) => numLike(x) != null);
+}
+
+// turn a {name: number} or {name: {volume:…}} map into bar entries
+function mapToBars(o) {
+  const out = [];
+  for (const [k, v] of Object.entries(o)) {
+    const n = numLike(v);
+    if (n != null) out.push({ label: k, value: n, vk: k });
+    else if (v && typeof v === 'object') { const fn = firstNum(v, VALUE_KEYS); if (fn) out.push({ label: k, value: fn[1], vk: fn[0] }); }
+  }
+  return out;
+}
+
+// {long,short} or {buy,sell} headline split bar
+function pairBar(o) {
+  const keys = Object.keys(o);
+  const lk = keys.find((k) => /(long|buy)/i.test(k) && /(vol|value|usd|count|size)/i.test(k));
+  const sk = keys.find((k) => /(short|sell)/i.test(k) && /(vol|value|usd|count|size)/i.test(k));
+  if (!lk || !sk || typeof o[lk] !== 'number' || typeof o[sk] !== 'number') return '';
+  const a = o[lk], b = o[sk], t = a + b; if (t <= 0) return '';
+  const u = isUsdish(lk);
   return `<div class="split"><div class="s-long" style="width:${(a / t) * 100}%"></div><div class="s-short" style="width:${(b / t) * 100}%"></div></div>
-    <div class="split-lbl"><span class="up">${esc(la)} ${usd(a)}</span><span class="down">${esc(lb)} ${usd(b)}</span></div>`;
+    <div class="split-lbl"><span class="up">${esc(lk.replace(/_/g, ' '))} ${u ? usd(a) : numFmt(a, 0)}</span><span class="down">${esc(sk.replace(/_/g, ' '))} ${u ? usd(b) : numFmt(b, 0)}</span></div>`;
 }
 
 function renderObj(o) {
-  let pre = '';
   const keys = Object.keys(o);
-  const has = (k) => keys.some((x) => x.toLowerCase().includes(k));
-  if (has('long') && has('short')) {
-    const lk = keys.find((k) => /long/i.test(k) && /vol|value|usd/i.test(k)) || keys.find((k) => /long/i.test(k));
-    const sk = keys.find((k) => /short/i.test(k) && /vol|value|usd/i.test(k)) || keys.find((k) => /short/i.test(k));
-    if (typeof o[lk] === 'number' && typeof o[sk] === 'number') pre += pairBar(o[lk], o[sk], 'long', 'short');
-  }
-  const rows = keys.map((k) => {
+  let head = pairBar(o);
+  const scalarRows = [];
+  const blocks = [];
+  for (const k of keys) {
     const v = o[k];
-    let cell;
-    if (Array.isArray(v)) cell = renderArr(v);
-    else if (v && typeof v === 'object') cell = `<div class="nested">${renderObj(v)}</div>`;
-    else cell = `<b class="num">${fmtVal(k, v)}</b>`;
-    return `<tr><td class="k">${esc(k)}</td><td>${cell}</td></tr>`;
-  }).join('');
-  return pre + `<table class="kvt">${rows}</table>`;
+    if (v == null || typeof v !== 'object') {
+      scalarRows.push(`<tr><td class="k">${esc(k)}</td><td><b class="num">${fmtVal(k, v)}</b></td></tr>`);
+    } else if (Array.isArray(v)) {
+      if (v.length) blocks.push(`<div class="chart-title">${esc(k.replace(/_/g, ' '))}</div>${renderArr(v, k)}`);
+    } else {
+      const vals = Object.values(v);
+      const allObj = vals.length >= 2 && vals.every((x) => x && typeof x === 'object' && !Array.isArray(x));
+      const bars = (allObj || isValueMap(v)) ? mapToBars(v) : [];
+      const title = `<div class="chart-title">${esc(k.replace(/_/g, ' '))}</div>`;
+      if (bars.length >= 2) {
+        const usdLike = isUsdish(k) || bars.every((b) => isUsdish(b.vk));
+        blocks.push(title + hbars(bars.sort((a, b) => Math.abs(b.value) - Math.abs(a.value)), usdLike) +
+          (bars.length > 14 ? `<div class="dimtxt">+${bars.length - 14} more</div>` : ''));
+      } else {
+        blocks.push(title + `<div class="nested">${renderObj(v)}</div>`);
+      }
+    }
+  }
+  const shownScalars = scalarRows.slice(0, 24);
+  const scalarTable = shownScalars.length ? `<table class="kvt">${shownScalars.join('')}</table>${scalarRows.length > 24 ? `<div class="dimtxt">+${scalarRows.length - 24} more fields</div>` : ''}` : '';
+  return head + scalarTable + blocks.join('');
 }
 
-function renderArr(arr) {
+// is this array a simple label+value breakdown (→ bar chart) vs a record list (→ table)?
+function arrAsBars(arr) {
+  if (arr.length < 2 || arr.length > 60 || typeof arr[0] !== 'object') return null;
+  const keys = Object.keys(arr[0] || {});
+  if (keys.length > 4) return null;
+  const lbl = firstStr(arr[0], LABEL_KEYS), nv = firstNum(arr[0], VALUE_KEYS);
+  if (lbl == null || nv == null) return null;
+  const lk = LABEL_KEYS.find((k) => typeof arr[0][k] === 'string') || Object.keys(arr[0]).find((k) => typeof arr[0][k] === 'string');
+  return { lk, vk: nv[0] };
+}
+
+function renderArr(arr, parentKey) {
   if (!arr.length) return '<span class="dimtxt">empty</span>';
   if (typeof arr[0] !== 'object') return `<span class="dimtxt">${arr.length} items:</span> ${arr.slice(0, 24).map((x) => esc(x)).join(', ')}${arr.length > 24 ? ' …' : ''}`;
-  const cols = [...new Set(arr.flatMap((r) => Object.keys(r || {})))].slice(0, 7);
+  const bars = arrAsBars(arr);
+  if (bars) {
+    const entries = arr.map((r) => ({ label: String(r[bars.lk] ?? '?'), value: Number(r[bars.vk]) || 0, vk: bars.vk }))
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+    return hbars(entries, isUsdish(bars.vk) || isUsdish(parentKey));
+  }
+  const cols = [...new Set(arr.flatMap((r) => Object.keys(r || {})))].slice(0, 6);
   const head = cols.map((c) => `<th>${esc(c)}</th>`).join('');
-  const body = arr.slice(0, 40).map((r) => `<tr>${cols.map((c) => `<td class="num">${fmtVal(c, r[c])}</td>`).join('')}</tr>`).join('');
-  return `<div class="tscroll"><table class="rowt"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${arr.length > 40 ? `<div class="dimtxt">+${arr.length - 40} more</div>` : ''}`;
+  const body = arr.slice(0, 30).map((r) => `<tr>${cols.map((c) => `<td class="num">${fmtVal(c, r[c])}</td>`).join('')}</tr>`).join('');
+  return `<div class="tscroll"><table class="rowt"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${arr.length > 30 ? `<div class="dimtxt">+${arr.length - 30} more rows</div>` : ''}`;
 }
 
 function renderAny(data) {
   if (data == null) return '<span class="dimtxt">no data</span>';
-  if (Array.isArray(data)) return renderArr(data);
+  if (Array.isArray(data)) return renderArr(data, '');
   if (typeof data === 'object') return renderObj(data);
   return `<b class="num">${esc(data)}</b>`;
 }
