@@ -126,6 +126,61 @@ That's it. You're now seeing what Wall Street sees.
 
 ---
 
+## Streaming Dashboard (Grover)
+
+A local, real-time **web** dashboard for pattern recognition — candlestick charts, sparklines,
+and gauges instead of scrolling numbers — backed by a recorder that **saves every stream to a
+local data lake** your bots can consume. Built on FastAPI + a vendored copy of TradingView
+Lightweight Charts (no CDN, runs fully offline once dependencies are installed).
+
+### Run it
+
+```bash
+pip install -r requirements.txt          # adds fastapi + uvicorn
+python run_dashboard.py                   # opens http://127.0.0.1:8787
+```
+
+Requires `MOONDEV_API_KEY` in `.env` (same key as the examples). If it's missing, the dashboard
+loads but shows an offline banner.
+
+### What you get
+
+- **Live Stream tab** — candlestick chart with symbol + interval switching, per-symbol instrument
+  cards (price, 24h-window change, funding, OI sparkline), the **HLP z-score sentiment gauge**,
+  a Fear & Greed gauge, a liquidation long/short + per-exchange breakdown, and a live trade tape.
+- **Themed example tabs** — the `examples/` scripts grouped onto shared grids that auto-refresh:
+  **Liquidations** (01/13/14/20), **HLP** (12/17/18), **Order Flow** (06/07/08/15),
+  **Positions & Whales** (02/03/10/11/16), **Smart Money** (09), **Market & Chain** (04/05/19/21/22).
+
+### Recorded data lake (for the bots)
+
+Every poll is appended under `./data/` (git-ignored), using the standard candle contract so other
+tools can read it directly:
+
+| Path | Contract |
+|------|----------|
+| `data/candles/<SYMBOL>-<INTERVAL>.csv` | `ts,open,high,low,close,volume` (closed bars only) |
+| `data/prices/<SYMBOL>.csv` · `funding/` · `oi/` | `ts,<value>` time series |
+| `data/liquidations.csv` | `ts,exchange,count,volume` |
+| `data/hlp_sentiment.csv` | `ts,net_delta,z_score,signal,percentile` |
+| `data/fng.csv` | `ts,value,classification` |
+| `data/trades.jsonl` | raw trade tape, de-duplicated |
+
+### Configuration (environment / `.env`)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GROVER_SYMBOLS` | `BTC ETH SOL HYPE` | Watchlist (space- or comma-separated) |
+| `GROVER_INTERVAL` | `5m` | Candle interval: `1m 5m 15m 1h 4h 1d` |
+| `GROVER_POLL_SEC` | `30` | Poll cadence (API updates every 30s) |
+| `GROVER_DATA_DIR` | `./data` | Data-lake output directory |
+| `GROVER_ADDRESS` | (HLP demo wallet) | Wallet for the Positions/Fills panels |
+| `GROVER_HOST` / `GROVER_PORT` | `127.0.0.1` / `8787` | Bind address |
+
+> Not financial advice — research/monitoring only. No buy/sell/hold signals.
+
+---
+
 ## API Examples
 
 Every example is a standalone Python script with beautiful terminal output. Run any of them to see live data.

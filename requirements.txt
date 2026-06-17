@@ -8,3 +8,7 @@ backtesting>=0.6.5
 # AI Swarm Agent (requires OPENROUTER_API_KEY in .env)
 openai
 termcolor
+
+# Streaming web dashboard (run_dashboard.py)
+fastapi>=0.110
+uvicorn[standard]>=0.29

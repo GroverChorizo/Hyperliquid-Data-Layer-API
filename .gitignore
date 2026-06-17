@@ -56,3 +56,6 @@ reports/backtests/
 
 # AI Swarm Agent data (results may contain API responses)
 ai_agents/data/
+
+# Dashboard recorder output (local data lake for the bots)
+data/

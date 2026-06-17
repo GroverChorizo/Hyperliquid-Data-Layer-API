@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grover · Hyperliquid Streaming Terminal</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">GROVER<span>·HL</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="conn">connecting…</span></div>
+    <nav class="tabs" id="tabbar"></nav>
+    <div class="meta">
+      <span>updated <b id="updated">—</b></span>
+      <span><b id="watch">—</b></span>
+    </div>
+  </header>
+
+  <div class="offline-banner" id="offline">
+    MOONDEV_API_KEY not set — add it to <b>.env</b> and restart <code>run_dashboard.py</code> to stream live data.
+  </div>
+
+  <!-- LIVE STREAMING VIEW -->
+  <main class="grid" id="view-live">
+    <section class="panel chart-card">
+      <div class="chart-head">
+        <div class="tabs" id="sym-tabs"></div>
+        <div class="tabs small" id="iv-tabs"></div>
+        <div class="chart-quote">
+          <span class="num last" id="q-last">—</span>
+          <span class="num chg" id="q-chg"></span>
+        </div>
+      </div>
+      <div id="chart"></div>
+    </section>
+
+    <aside class="rail">
+      <!-- SIGNATURE: HLP sentiment gauge -->
+      <div class="panel">
+        <div class="phead"><span class="label">HLP Sentiment</span><span class="sub">contrarian z-score</span></div>
+        <div class="hlp-body">
+          <svg class="gauge" viewBox="0 0 200 118" id="hlp-gauge">
+            <path class="track" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="10" />
+            <g id="hlp-ticks"></g>
+            <line class="needle" id="hlp-needle" x1="100" y1="100" x2="100" y2="28" stroke="#2dd4a7" stroke-width="4" />
+            <circle class="hub" cx="100" cy="100" r="6" />
+          </svg>
+          <div class="hlp-z num" id="hlp-z">—<small>σ</small></div>
+          <div class="hlp-signal" id="hlp-signal">awaiting data</div>
+          <div class="hlp-meta">
+            <span>net Δ <b id="hlp-delta">—</b></span>
+            <span>pctile <b id="hlp-pct">—</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fear & Greed -->
+      <div class="panel">
+        <div class="phead"><span class="label">Fear &amp; Greed</span><span class="sub">alternative.me</span></div>
+        <div class="fng-body">
+          <div class="fng-top"><span class="fng-val num" id="fng-val">—</span><span class="fng-class" id="fng-class"></span></div>
+          <div class="fng-bar"><div class="fng-marker" id="fng-marker" style="left:50%"></div></div>
+          <div class="fng-scale"><span>fear</span><span>neutral</span><span>greed</span></div>
+          <svg class="fng-spark" id="fng-spark" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+
+      <!-- Liquidations -->
+      <div class="panel">
+        <div class="phead"><span class="label">Liquidations</span><span class="sub" id="liq-sub">all exchanges</span></div>
+        <div class="liq-body">
+          <div class="liq-total"><span class="big num" id="liq-total">—</span><span class="kv-dim">24h volume</span></div>
+          <div>
+            <div class="split"><div class="s-long" id="liq-long" style="width:50%"></div><div class="s-short" id="liq-short" style="width:50%"></div></div>
+            <div class="split-lbl"><span class="up">long <b class="num" id="liq-long-v">—</b></span><span class="down">short <b class="num" id="liq-short-v">—</b></span></div>
+          </div>
+          <div class="exbars" id="liq-ex"></div>
+        </div>
+      </div>
+
+      <!-- Trade tape -->
+      <div class="panel">
+        <div class="phead"><span class="label">Trade Tape</span><span class="sub">real-time</span></div>
+        <div class="tape-body" id="tape"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- THEMED FEED GRIDS (example tabs) -->
+  <main class="feedgrid" id="view-feeds" style="display:none"></main>
+
+  <footer class="foot">
+    <span><b>Not financial advice.</b> Research/monitoring only — no buy/sell/hold signals.</span>
+    <span>Data: Moon Dev Hyperliquid Data Layer · streams recorded locally to <b id="datadir">./data</b></span>
+  </footer>
+
+  <script src="/lightweight-charts.standalone.production.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
